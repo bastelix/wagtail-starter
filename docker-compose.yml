@@ -1,42 +1,75 @@
-version: '3'
+version: '3.1'
+
+services:
+
+  nginx-proxy:
+    container_name: nginx-proxy
+    image: jwilder/nginx-proxy:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./nginx/conf.d/my_proxy.conf:/etc/nginx/conf.d/my_proxy.conf:ro
+      - /etc/nginx/certs
+    environment:
+      DEFAULT_EMAIL: ${WAGTAIL_LETSENCRYPT_EMAIL_1}
+    restart: unless-stopped
+
+  wagtail1:
+    container_name: wagtail01
+    image: wagtailproject/wagtail:latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      VIRTUAL_HOST: ${WAGTAIL_VIRTUAL_HOST_1}
+      LETSENCRYPT_HOST: ${WAGTAIL_LETSENCRYPT_HOST_1}
+      LETSENCRYPT_EMAIL: ${WAGTAIL_LETSENCRYPT_EMAIL_1}
+    volumes:
+      - wagtail_media_1:${WAGTAIL_MEDIA_PATH_1}
+      - wagtail_static_1:${WAGTAIL_STATIC_PATH_1}
+    networks:
+      - backend
+
+  wagtail2:
+    container_name: wagtail02
+    image: wagtailproject/wagtail:latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      VIRTUAL_HOST: ${WAGTAIL_VIRTUAL_HOST_2}
+      LETSENCRYPT_HOST: ${WAGTAIL_LETSENCRYPT_HOST_2}
+      LETSENCRYPT_EMAIL: ${WAGTAIL_LETSENCRYPT_EMAIL_2}
+    volumes:
+      - wagtail_media_2:${WAGTAIL_MEDIA_PATH_2}
+      - wagtail_static_2:${WAGTAIL_STATIC_PATH_2}
+    networks:
+      - backend
+
+  db:
+    container_name: postgres
+    image: postgres:latest
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - backend
+    restart: unless-stopped
+
+networks:
+  backend:
+    driver: bridge
 
 volumes:
-  node_modules:
-services:
-  web:
-    build: 
-      context: .
-      dockerfile: Dockerfile.wagtail
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    # you can use the tail -F anything command to start an empty container
-    command: tail -F anything 
-    #command: python manage.py runserver 0.0.0.0:${DOCKER_DJANGO_PORT:-8000}
-    volumes:
-      - .:/code
-      - ~/.ssh/id_rsa:/root/.ssh/id_rsa
-      - node_modules:/code/node_modules/
-    ports:
-      - "${DOCKER_DJANGO_PORT:-8000}:${DOCKER_DJANGO_PORT:-8000}"
-      - 5432
-    environment:
-      DATABASE_URL: postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@${POSTGRES_HOST:-host.docker.internal}:5432/$POSTGRES_DATABASE
-  # Optional redis container
-  # redis:
-  #   image: redis:alpine
-  #   restart: always
-  #   expose:
-  #     - 6379
-  # Optional celery container
-  # celery:
-  #   restart: always
-  #   build:
-  #     context: .
-  #   command: celery -A <project_name> worker -l info
-  #   volumes:
-  #     - .:/code
-  #   environment:
-  #     DATABASE_URL: postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@${POSTGRES_HOST:-host.docker.internal}:5432/$POSTGRES_DATABASE
-  #   depends_on:
-  #     - redis
-  #     - web
+  postgres_data:
+  wagtail_media_1:
+  wagtail_static_1:
+  wagtail_media_2:
+  wagtail_static_2:
